@@ -1,6 +1,11 @@
 #include <EFM8LB1.h>
 #include <stdio.h>
+#include <math.h>
 #include "lcd.h"
+
+// Values of resistors in slide 6
+#define Ra 1000
+#define Rb 2000
 
 unsigned char overflow_count;
 
@@ -33,10 +38,31 @@ void TIMER0_Init(void)
 	TR0=0; // Stop Timer/Counter 0
 }
 
+const char* SIprefix(int exp)
+{
+	switch(exp)
+	{
+		case 3:
+			return "m";
+		case 6:
+			return "µ";
+		case 9:
+			return "n";
+		case 12:
+			return "p";
+		default:
+			return "?";
+	}
+}
+
 void main (void)
 {
 	unsigned long F;
+	float C; // Capacitance
+	int exp=0;
 	char Fstr[17];
+	char Cstr[17];
+
 	TIMER0_Init();
 	waitms(500);
 	printf("\x1b[23");
@@ -48,7 +74,6 @@ void main (void)
 	// Configure the LCD
 	LCD_4BIT();
 
-	LCDprint("Frequency (Hz):", 1, 1);
 	while(1)
 	{
 		TL0=0;
@@ -58,10 +83,26 @@ void main (void)
 		TR0=1; // Start Timer/Counter 0
 		waitms(1000);
 		TR0=0; // Stop Timer/Counter 0
+
 		F=overflow_count*0x10000L+TH0*0x100L+TL0;
-		printf("\rf=%luHz", F);
+		// Solve for capacitance based on frequency using formula in slide 6
+		C = 1.44/((Ra+2*Rb)*F);
+
+		// convert to SI notation - find prefix value
+		while(C<1)
+		{
+			exp+=3;
+			C*=1000;
+		}
+
+		// print frequency and calculated capacitance to PuTTY
+		printf("\rf=%luHz, c=%f%sF", F, C, SIprefix(exp));
 		printf("\x1b[0K"); // ANSI: Clear from cursor to end of line.
-		sprintf(Fstr, "%lu", F);
-		LCDprint(Fstr, 2, 1);
+
+		// print frequency and calculated capacitance to LCD
+		sprintf(Fstr, "%luHz", F);
+		sprintf(Cstr, "%f%sF", C, SIprefix(exp));
+		LCDprint(Fstr, 1, 1);
+		LCDprint(Cstr, 2, 1);
 	}
 }
