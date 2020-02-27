@@ -4,7 +4,7 @@
 #include "lcd.h"
 
 // Values of resistors in slide 6
-#define Ra 1000
+#define Ra 2000
 #define Rb 2000
 
 unsigned char overflow_count;
@@ -45,7 +45,7 @@ const char* SIprefix(int exp)
 		case 3:
 			return "m";
 		case 6:
-			return "µ";
+			return "u";
 		case 9:
 			return "n";
 		case 12:
@@ -65,7 +65,8 @@ void main (void)
 
 	TIMER0_Init();
 	waitms(500);
-	printf("\x1b[23");
+	printf("\x1b[2J"); // Clear screen using ANSI escape sequence.
+	printf("\x1b[;f"); // Reset cursor position
 	printf ("EFM8 Frequency measurement using Timer/Counter 0.\n"
 	        "File: %s\n"
 	        "Compiled: %s, %s\n\n",
@@ -76,17 +77,18 @@ void main (void)
 
 	while(1)
 	{
+		exp=0;
 		TL0=0;
 		TH0=0;
 		overflow_count=0;
 		TF0=0;
 		TR0=1; // Start Timer/Counter 0
-		waitms(1000);
+		waitms(200);
 		TR0=0; // Stop Timer/Counter 0
 
 		F=overflow_count*0x10000L+TH0*0x100L+TL0;
 		// Solve for capacitance based on frequency using formula in slide 6
-		C = 1.44/((Ra+2*Rb)*F);
+		C = 1.44/(5*(Ra+2*Rb)*F);
 
 		// convert to SI notation - find prefix value
 		while(C<1)
